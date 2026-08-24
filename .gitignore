@@ -1,0 +1,10 @@
+node_modules/
+*.log
+*.tgz
+.dsh/
+settings.yaml
+.env
+.env.*
+credentials*
+*.pem
+*.key
