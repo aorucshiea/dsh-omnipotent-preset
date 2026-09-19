@@ -125,8 +125,10 @@ export function testinessFor(mode) {
   }
 }
 
-const REACT_RE = /(开发|创建|写一个|生成|从零|做一个|游戏|网页|网站|构建|新项目|搭建|实现|做出|上线|落地|脚本|工具|应用|build|create|develop|generate|implement|make a|new project)/gi
-const SPEC_RE = /(修复|修一下|调试|重构|维护|排查|报错|出错|崩溃|优化|审查|review|fix|debug|refactor|maintain|repair|broken|break|为什么|异常|故障|迁移|升级|兼容)/gi
+// ASCII keywords get letter-boundary lookarounds so substrings like "fix" in
+// "prefix" or "break" in "breakfast" do not misfire; CJK needs no boundaries.
+const REACT_RE = /(开发|创建|写一个|生成|从零|做一个|游戏|网页|网站|构建|新项目|搭建|实现|做出|上线|落地|脚本|工具|应用|(?<![a-z])(?:build|create|develop|generate|implement|make a|new project)(?![a-z]))/gi
+const SPEC_RE = /(修复|修一下|调试|重构|维护|排查|报错|出错|崩溃|优化|审查|为什么|异常|故障|迁移|升级|兼容|(?<![a-z])(?:review|fix|debug|refactor|maintain|repair|broken|break)(?![a-z]))/gi
 
 function countHits(regex, text) {
   return [...text.matchAll(regex)].length

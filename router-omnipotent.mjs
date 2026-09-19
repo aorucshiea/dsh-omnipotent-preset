@@ -144,8 +144,7 @@ export function apply(ctx, config) {
     if (!firstUserText.has(session.id) && text.trim()) {
       firstUserText.set(session.id, text.trim()) // issue #3: capture BEFORE assembly
     }
-    const agent = ctx.get('agent')
-    const target = agent !== undefined && agent.session === session ? agent : [...agents.values()].find((a) => a.session === session)
+    const target = [...agents.values()].find((a) => a.session === session)
     if (target === undefined || target.inbox === undefined) return
     const mode = overrides.get(session.id) ?? firstUserText.get(session.id) ?? sessionMode(session)
     if (bandOf(mode) !== 'weak') return // strong modes need no guidance
@@ -187,11 +186,14 @@ export function apply(ctx, config) {
     description: 'Show this session\'s reasoning-mode routing: mode, band, persona, first-turn core tools, test-suppression, and whether an override is active.',
     parameters: {},
     output: { schema: { type: 'string' }, render: (_a, v) => [{ type: 'text', text: v }] },
-    execute() {
-      const session = currentSession()
+    execute(_args, exec) {
+      // exec.agent is the CALLING agent (defineTool forwards it); the
+      // process-wide `agents` map is only a fallback for external calls.
+      const agent = exec?.agent
+      const session = agent?.session ?? currentSession()
       if (session === undefined) return 'no agent session'
       const mode = overrides.get(session.id) ?? sessionMode(session)
-      const modelId = currentAgent()?.options?.model
+      const modelId = agent?.options?.model ?? currentAgent()?.options?.model
       const modeLabel = routerMode === 'all'
         ? 'all (adaptive RL/spec)'
         : routerMode === 'spec' ? 'spec (deep-think-first)' : 'standard (RL interface)'
@@ -211,10 +213,12 @@ export function apply(ctx, config) {
     description: 'Set this session\'s reasoning mode: spec (plan-first) / weak (internal routing, model decides per task) / mixed (transition, trap) / react (doer). Accepts band names, 0-100, 0.0-1.0, or auto to return to task classification. The next request applies it.',
     parameters: modeSpec,
     output: { schema: { type: 'string' }, render: (_a, v) => [{ type: 'text', text: v }] },
-    execute(args) {
+    execute(args, exec) {
       const parsed = parseMode(args.mode)
       if (parsed === null) return `invalid mode "${args.mode}": use spec/weak/mixed/react, 0-100, 0.0-1.0, or auto`
-      const session = currentSession()
+      // Key the override to the CALLING session (exec.agent), falling back to
+      // the last registered agent only for calls without an exec context.
+      const session = exec?.agent?.session ?? currentSession()
       if (session === undefined) return 'no agent session'
       if (parsed === 'auto') overrides.delete(session.id)
       else overrides.set(session.id, parsed === 'weak' ? 'weak' : clamp01(parsed))
@@ -268,8 +272,8 @@ export function apply(ctx, config) {
   })
 
   function currentSession() {
-    const agent = ctx.get('agent')
-    if (agent !== undefined && agent.session !== undefined) return agent.session
+    // There is no `agent` service in the runtime — the registry is `agents`
+    // (a Map keyed by agent). Prefer the most recently registered one.
     const last = [...agents.values()].at(-1)
     return last?.session
   }

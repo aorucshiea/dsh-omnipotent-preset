@@ -35,7 +35,7 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: |-
+    prefix: |-
       You are a coding agent powered by the {{model}} model, running on the DeepSeek Harness. Your working directory is {{cwd}}.
 
       You are the all-round (全能) agent. You can use the full standard tool catalog, Code Mode's `run_code` TypeScript SDK, the persistent bash + str_replace_editor RL surface, and the Cordis self-modification toolset to inspect the runtime, experiment with plugins, and author new agent presets.
@@ -101,11 +101,13 @@
 
     - id: terminal-bash
       name: '@deepseek-ai/dsh-terminal-bash'
+      disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 300000
 
     - id: persistent-bash
       name: '@deepseek-ai/dsh-tool-bash-persistent'
+      disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 300000
         description: |-
@@ -117,6 +119,27 @@
           * To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'.
           * Please avoid commands that may produce a very large amount of output.
           * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
+
+    - id: terminal-pwsh
+      name: '@deepseek-ai/dsh-terminal-bash'
+      disabled: !!js process.platform !== 'win32'
+      config:
+        shellDialect: pwsh
+        timeoutMs: 300000
+
+    - id: persistent-pwsh
+      name: '@deepseek-ai/dsh-tool-pwsh-persistent'
+      disabled: !!js process.platform !== 'win32'
+      config:
+        timeoutMs: 300000
+        description: |-
+          Run commands in a PowerShell shell
+          * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
+          * You don't have access to the internet via this tool.
+          * State is persistent across command calls and discussions with the user.
+          * Use native Windows paths (C:\...) and $env:NAME variables; this is PowerShell, not bash.
+          * Please avoid commands that may produce a very large amount of output.
+          * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
 
 # ── filesystem ──────────────────────────────────────────────────────────────
 
@@ -303,6 +326,11 @@
 # `both` exposes every native tool schema AND `run_code` with a generated
 # TypeScript SDK — the PTC mode's multi-step composition without hiding the
 # standard native catalog.
+#
+# Requires the host to provide `codeRuntime` (the dsh-web-app bundle does).
+# In profiles without it this row never activates and the whole preset fails
+# to mount — the same constraint the shipped `ptc` preset documents. Safe
+# mode is unaffected: it does not discover user presets at all.
 - id: tool-presentation
   name: '@deepseek-ai/dsh-agent-tool-presentation'
   config:
